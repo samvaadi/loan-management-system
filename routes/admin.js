@@ -59,6 +59,10 @@ router.post('/evaluate-action', verifyToken, verifyAdmin, async (req, res) => {
 
 // Provision Employee Credentials
 router.post('/create-credentials', verifyToken, verifyAdmin, async (req, res) => {
+    if (req.user.role !== 'master_admin') {
+        return res.status(403).json({ success: false, error: "Access Denied: Administrative account provisioning privileges are strictly restricted to Master Admin accounts." });
+    }
+
     const { first_name, last_name, email, password } = req.body;
     if (!email || !password || !first_name || !last_name) {
         return res.status(400).json({ success: false, error: "All fields are mandatory." });

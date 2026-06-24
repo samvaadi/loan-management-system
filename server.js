@@ -1,6 +1,7 @@
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-require('dotenv').config();
+
 // Import Custom Modular Sub-Routers
 const authRoutes = require('./routes/auth');
 const calculatorRoutes = require('./routes/calculator');

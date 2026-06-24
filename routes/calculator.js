@@ -15,9 +15,13 @@ router.get('/schemes', async (req, res) => {
 // Evaluate Loan Feasibility
 router.post('/evaluate', async (req, res) => {
     const scheme_id = parseInt(req.body.scheme_id, 10);
-    const income = parseFloat(req.body.income) || 0;
-    const amount = parseFloat(req.body.amount) || 0;
-    const tenure = parseInt(req.body.tenure, 10) || 0;
+    const income = parseFloat(req.body.income);
+    const amount = parseFloat(req.body.amount);
+    const tenure = parseInt(req.body.tenure, 10);
+
+    if ([scheme_id, income, amount, tenure].some(Number.isNaN) || scheme_id <= 0 || income <= 0 || amount <= 0 || tenure <= 0) {
+        return res.status(400).json({ error: 'Invalid calculator input values.' });
+    }
 
     try {
         const schemeRes = await pool.query('SELECT * FROM Bank_Schemes WHERE scheme_id = $1', [scheme_id]);
@@ -27,12 +31,19 @@ router.post('/evaluate', async (req, res) => {
         const schemeMinIncome = parseFloat(scheme.min_income_required);
         const schemeInterestRate = parseFloat(scheme.interest_rate);
 
+        if ([schemeMinIncome, schemeInterestRate].some(Number.isNaN)) {
+            return res.status(500).json({ error: 'Invalid scheme calibration values.' });
+        }
+
         if (income < schemeMinIncome) {
             return res.json({ feasible: false, reason: `Income falls below product baseline: ₹${schemeMinIncome.toLocaleString('en-IN')}.` });
         }
         
         const r = (schemeInterestRate / 100) / 12; 
-        const emi = amount * r * Math.pow(1 + r, tenure) / (Math.pow(1 + r, tenure) - 1);
+        const compoundFactor = Math.pow(1 + r, tenure);
+        const emi = r === 0
+            ? amount / tenure
+            : (amount * r * compoundFactor) / (compoundFactor - 1);
         const maxEmi = income * 0.50; 
         
         if (isNaN(emi) || !isFinite(emi)) {
