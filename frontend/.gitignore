@@ -25,3 +25,5 @@ dist-ssr
 
 .env
 secure_uploads
+node_modules/
+

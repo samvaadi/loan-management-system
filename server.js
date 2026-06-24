@@ -1,6 +1,8 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const cron = require('node-cron');
+const { runRepaymentSweep } = require('./workers/repaymentWorker');
 
 // Import Custom Modular Sub-Routers
 const authRoutes = require('./routes/auth');
@@ -25,4 +27,9 @@ app.use('/api/admin', adminRoutes);
 // Health Check Root Hook
 app.get('/', (req, res) => res.send("🚀 Fullstack Risk Decentralized API Engine Serving cleanly..."));
 
+cron.schedule('0 0 * * *', () => {
+    runRepaymentSweep().catch((err) => {
+        console.error('[repayment-worker] Unhandled cron execution fault:', err);
+    });
+});
 app.listen(PORT, () => console.log(`🚀 Automated Fullstack Risk Engine serving over Port ${PORT}`));

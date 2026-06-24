@@ -15,7 +15,7 @@ const verifyToken = (req, res, next) => {
 };
 
 const verifyAdmin = (req, res, next) => {
-    if (req.user && req.user.role === 'admin') {
+    if (req.user && ['admin', 'master_admin'].includes(req.user.role)) {
         next();
     } else {
         return res.status(403).json({ success: false, error: "Administrative privileges required." });
