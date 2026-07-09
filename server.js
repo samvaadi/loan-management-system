@@ -9,6 +9,7 @@ const authRoutes = require('./routes/auth');
 const calculatorRoutes = require('./routes/calculator');
 const customerRoutes = require('./routes/customer');
 const adminRoutes = require('./routes/admin');
+const analyticsRoutes = require('./routes/analytics');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -23,6 +24,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/calculator', calculatorRoutes);
 app.use('/api/customer', customerRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/analytics', analyticsRoutes);
 
 // Health Check Root Hook
 app.get('/', (req, res) => res.send("🚀 Fullstack Risk Decentralized API Engine Serving cleanly..."));

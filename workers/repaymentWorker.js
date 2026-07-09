@@ -64,11 +64,11 @@ const markDelinquentLoans = async (client, columns) => {
 
     const setClauses = [
         `${statusColumn} = 'Delinquent'`,
-        `${remainingBalanceColumn} = ROUND((${remainingBalanceColumn} * (1 + $1))::numeric, 2)`
+        `${remainingBalanceColumn} = ROUND((${remainingBalanceColumn} * (1 + $1::numeric))::numeric, 2)`
     ];
 
     if (lateFeeColumn) {
-        setClauses.push(`${lateFeeColumn} = COALESCE(${lateFeeColumn}, 0) + ROUND((${remainingBalanceColumn} * $1)::numeric, 2)`);
+        setClauses.push(`${lateFeeColumn} = COALESCE(${lateFeeColumn}, 0) + ROUND((${remainingBalanceColumn} * $1::numeric)::numeric, 2)`);
     }
 
     const result = await client.query(`
@@ -106,3 +106,15 @@ const runRepaymentSweep = async () => {
 module.exports = {
     runRepaymentSweep
 };
+
+if (require.main === module) {
+    runRepaymentSweep()
+        .then(() => {
+            console.log('[repayment-worker] Execution complete.');
+            pool.end();
+        })
+        .catch((err) => {
+            console.error('[repayment-worker] Direct execution sweep failed:', err);
+            pool.end();
+        });
+}

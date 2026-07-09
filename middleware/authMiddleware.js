@@ -22,5 +22,15 @@ const verifyAdmin = (req, res, next) => {
     }
 };
 
+const authorizeRoles = (...roles) => {
+    return (req, res, next) => {
+        if (req.user && roles.includes(req.user.role)) {
+            next();
+        } else {
+            return res.status(403).json({ success: false, error: "Access Denied: Insufficient permissions." });
+        }
+    };
+};
+
 // Ensure this object structure is pristine at the bottom of the file!
-module.exports = { verifyToken, verifyAdmin };
+module.exports = { verifyToken, verifyAdmin, authorizeRoles };

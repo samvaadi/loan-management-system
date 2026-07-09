@@ -284,7 +284,7 @@ export default function App() {
       )}
 
       <div className="app-container">
-        <h1>🏦 Apex Core Retail Bank Platform (React)</h1>
+        <h1>🏦 Apex Core Retail Bank Platform</h1>
         
         <div className="nav-bar">
           <button onClick={() => navigateTo('home')} className={page === 'home' ? 'active' : ''}>Home</button>
