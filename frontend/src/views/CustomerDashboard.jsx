@@ -1,5 +1,3 @@
-import React from 'react';
-
 export default function CustomerDashboard({
   schemes, appForm, setAppForm,
   setPanFile, setAadhaarFile, setSalaryFile,

@@ -15,12 +15,22 @@ const verifyToken = (req, res, next) => {
 };
 
 const verifyAdmin = (req, res, next) => {
-    if (req.user && req.user.role === 'admin') {
+    if (req.user && ['admin', 'master_admin'].includes(req.user.role)) {
         next();
     } else {
         return res.status(403).json({ success: false, error: "Administrative privileges required." });
     }
 };
 
+const authorizeRoles = (...roles) => {
+    return (req, res, next) => {
+        if (req.user && roles.includes(req.user.role)) {
+            next();
+        } else {
+            return res.status(403).json({ success: false, error: "Access Denied: Insufficient permissions." });
+        }
+    };
+};
+
 // Ensure this object structure is pristine at the bottom of the file!
-module.exports = { verifyToken, verifyAdmin };
+module.exports = { verifyToken, verifyAdmin, authorizeRoles };

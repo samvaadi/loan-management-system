@@ -1,5 +1,3 @@
-import React from 'react';
-
 export default function AdminPanel({ adminQueue, metrics, handleAdminAction, token, setLoading }) {
   return (
     <div className="card">

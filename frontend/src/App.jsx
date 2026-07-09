@@ -1,10 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import './App.css';
 
 // Import Modularized Views
 import Home from './views/Home';
 import CustomerDashboard from './views/CustomerDashboard';
 import AdminPanel from './views/AdminPanel';
+
+const ADMIN_ROLES = ['admin', 'master_admin'];
+const ROUTE_ALIASES = {
+  '/': 'home',
+  '/customer-dashboard': 'customer',
+  '/admin-panel': 'admin'
+};
 
 export default function App() {
   const [page, setPage] = useState('home');
@@ -14,8 +21,8 @@ export default function App() {
   const [loading, setLoading] = useState(false);
 
   // Authentication Input States
-  const [loginEmail, setLoginEmail] = useState('admin@bank.com');
-  const [loginPass, setLoginPass] = useState('admin123');
+  const [loginEmail, setLoginEmail] = useState('');
+  const [loginPass, setLoginPass] = useState('');
   const [regForm, setRegForm] = useState({ first_name: '', last_name: '', email: '', password: '', age: 25, monthly_income: 50000 });
 
   // Calculator Input/Output States
@@ -34,9 +41,10 @@ export default function App() {
   const [metrics, setMetrics] = useState({ totalDisbursed: 0, totalExposure: 0, activeLoans: 0, conversionRate: "0.0" });
 
   const navigateTo = (targetPage) => {
+    const resolvedPage = ROUTE_ALIASES[targetPage] || targetPage;
     setLoading(true);
     setTimeout(() => {
-      setPage(targetPage);
+      setPage(resolvedPage);
       setLoading(false);
     }, 600);
   };
@@ -70,15 +78,6 @@ export default function App() {
       });
   }, []);
 
-  useEffect(() => {
-    if (!token || !role) return;
-    if (role === 'admin') {
-      loadAdminQueue();
-      loadAdminMetrics();
-    } else if (role === 'customer') {
-      loadCustomerPortfolio();
-    }
-  }, [token, role]);
 
   const handleLogin = async () => {
     setLoading(true);
@@ -91,13 +90,23 @@ export default function App() {
     setLoading(false);
     
     if (data.success) {
-      localStorage.setItem('token', data.token);
-      localStorage.setItem('role', data.role);
-      setToken(data.token);
-      setRole(data.role);
-      setPage(data.role === 'admin' ? 'admin' : 'customer');
+      const authenticatedRole = data.user?.role || data.profile?.role || data.account?.role || data.role;
+      if (!['customer', ...ADMIN_ROLES].includes(authenticatedRole)) {
+        alert('Invalid role');
+        return;
+      }
 
-      if (data.role === 'admin') {
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('role', authenticatedRole);
+      setToken(data.token);
+      setRole(authenticatedRole);
+      if (authenticatedRole === 'customer') {
+        navigateTo('/customer-dashboard');
+      } else if (ADMIN_ROLES.includes(authenticatedRole)) {
+        navigateTo('/admin-panel');
+      }
+
+      if (ADMIN_ROLES.includes(authenticatedRole)) {
         const queueRes = await fetch('http://localhost:5000/api/admin/queue', { headers: { 'Authorization': data.token } });
         const queueData = await queueRes.json();
         setAdminQueue(Array.isArray(queueData) ? queueData : []);
@@ -105,7 +114,7 @@ export default function App() {
         const metricsRes = await fetch('http://localhost:5000/api/admin/metrics', { headers: { 'Authorization': data.token } });
         const metricsData = await metricsRes.json();
         if (metricsData && !metricsData.error) setMetrics(metricsData);
-      } else if (data.role === 'customer') {
+      } else if (authenticatedRole === 'customer') {
         try {
           const portfolioRes = await fetch('http://localhost:5000/api/customer/portfolio', { headers: { 'Authorization': data.token } });
           const portfolioData = await portfolioRes.json();
@@ -113,7 +122,7 @@ export default function App() {
             active: portfolioData && portfolioData.active ? portfolioData.active : [],
             applications: portfolioData && portfolioData.applications ? portfolioData.applications : []
           });
-        } catch (err) {
+        } catch {
           setPortfolio({ active: [], applications: [] });
         }
       }
@@ -167,7 +176,7 @@ export default function App() {
             active: data && data.active ? data.active : [],
             applications: data && data.applications ? data.applications : []
         });
-    } catch (err) {
+    } catch {
         setPortfolio({ active: [], applications: [] });
     }
   };
@@ -213,6 +222,44 @@ export default function App() {
     if (!data.error) { setMetrics(data); }
   };
 
+  useEffect(() => {
+    if (!token || !role) return;
+
+    let cancelled = false;
+
+    const loadSessionData = async () => {
+      if (ADMIN_ROLES.includes(role)) {
+        const queueRes = await fetch('http://localhost:5000/api/admin/queue', { headers: { 'Authorization': token } });
+        const queueData = await queueRes.json();
+        if (cancelled) return;
+        setAdminQueue(Array.isArray(queueData) ? queueData : []);
+
+        const metricsRes = await fetch('http://localhost:5000/api/admin/metrics', { headers: { 'Authorization': token } });
+        const metricsData = await metricsRes.json();
+        if (!cancelled && metricsData && !metricsData.error) setMetrics(metricsData);
+      } else if (role === 'customer') {
+        try {
+          const res = await fetch('http://localhost:5000/api/customer/portfolio', { headers: { 'Authorization': token } });
+          const data = await res.json();
+          if (!cancelled) {
+            setPortfolio({
+              active: data && data.active ? data.active : [],
+              applications: data && data.applications ? data.applications : []
+            });
+          }
+        } catch {
+          if (!cancelled) setPortfolio({ active: [], applications: [] });
+        }
+      }
+    };
+
+    loadSessionData();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [token, role]);
+
   const handleAdminAction = async (appId, action) => {
     setLoading(true);
     const res = await fetch('http://localhost:5000/api/admin/evaluate-action', {
@@ -237,14 +284,14 @@ export default function App() {
       )}
 
       <div className="app-container">
-        <h1>🏦 Apex Core Retail Bank Platform (React)</h1>
+        <h1>🏦 Apex Core Retail Bank Platform</h1>
         
         <div className="nav-bar">
           <button onClick={() => navigateTo('home')} className={page === 'home' ? 'active' : ''}>Home</button>
           <button onClick={() => navigateTo('policies')} className={page === 'policies' ? 'active' : ''}>Policy Handbook</button>
           <button onClick={() => navigateTo('calculator')} className={page === 'calculator' ? 'active' : ''}>Feasibility Calculator</button>
           {role === 'customer' && <button onClick={() => navigateTo('customer')} className={page === 'customer' ? 'active' : ''}>My Dashboard</button>}
-          {role === 'admin' && <button onClick={() => navigateTo('admin')} className={page === 'admin' ? 'active' : ''}>Admin Panel</button>}
+          {ADMIN_ROLES.includes(role) && <button onClick={() => navigateTo('admin')} className={page === 'admin' ? 'active' : ''}>Admin Panel</button>}
           {token && <button onClick={logout} style={{ marginLeft: 'auto', background: '#dc2626' }}>Logout</button>}
         </div>
 
